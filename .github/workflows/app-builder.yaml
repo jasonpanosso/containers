@@ -1,0 +1,73 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: App Builder
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        type: string
+        description: App Name
+        required: true
+      release:
+        type: boolean
+        description: Push the image to GHCR
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ inputs.app }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Get App Version
+        id: version
+        working-directory: ./apps/${{ inputs.app }}
+        run: |
+          VERSION=$(\
+              docker buildx bake --list type=variables,format=json --progress=quiet \
+                  | jq --raw-output '.[] | select(.name == "VERSION") | .value' \
+          )
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build App Metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: meta
+        with:
+          flavor: latest=false
+          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+          tags: type=raw,value=${{ steps.version.outputs.version }}
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to GitHub Container Registry
+        if: ${{ inputs.release }}
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build App
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: |
+            ./docker-bake.hcl
+            cwd://${{ steps.meta.outputs.bake-file }}
+          push: ${{ inputs.release }}
+          source: ./apps/${{ inputs.app }}
+          targets: image-all
