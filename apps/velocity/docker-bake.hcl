@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=PaperMC/Velocity
-  default = "v4.1.1"
+  default = "v4.3.1"
 }
 
 group "default" {
