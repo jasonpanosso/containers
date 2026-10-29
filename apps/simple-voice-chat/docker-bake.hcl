@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=custom.modrinth-velocity depName=simple-voice-chat versioning=regex:^velocity-(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
-  default = "velocity-2.6.18"
+  default = "velocity-2.6.26"
 }
 
 group "default" {
