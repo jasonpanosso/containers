@@ -3,7 +3,9 @@
 # Velocity jar only, for mounting as an image volume; Java comes from the
 # consuming pod.
 
+FROM --platform=$BUILDPLATFORM ghcr.io/jqlang/jq:1.8.2@sha256:b9c68867e5766576263a222e91db3de422d802069c7af70440e667a95344e486 AS jq
 FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.24.4@sha256:93b41ef40b1677fce8fcc64ff4af09daddfacf5040afde618bc46c1e2d1cc7d4 AS velocity
+COPY --from=jq /jq /usr/local/bin/jq
 ARG VERSION
 WORKDIR /out
 RUN \
