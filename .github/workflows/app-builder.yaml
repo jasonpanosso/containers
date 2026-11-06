@@ -22,7 +22,9 @@ jobs:
     name: Build ${{ inputs.app }}
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: read
+      id-token: write
       packages: write
     steps:
       - name: Checkout
@@ -48,9 +50,6 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
           tags: type=raw,value=${{ steps.version.outputs.version }}
 
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -64,10 +63,20 @@ jobs:
 
       - name: Build App
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        id: bake
         with:
           files: |
             ./docker-bake.hcl
-            cwd://${{ steps.meta.outputs.bake-file }}
+            cwd://${{ steps.meta.outputs.bake-file-tags }}
+          provenance: false
           push: ${{ inputs.release }}
           source: ./apps/${{ inputs.app }}
           targets: image-all
+
+      - name: Attest Build Provenance
+        if: ${{ inputs.release }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          push-to-registry: true
+          subject-digest: ${{ fromJSON(steps.bake.outputs.metadata)['image-all']['containerimage.digest'] }}
+          subject-name: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}

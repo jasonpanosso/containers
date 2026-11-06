@@ -41,7 +41,9 @@ jobs:
       - changed
     uses: ./.github/workflows/app-builder.yaml
     permissions:
+      attestations: write
       contents: read
+      id-token: write
       packages: write
     strategy:
       matrix:
