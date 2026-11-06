@@ -59,7 +59,7 @@
     },
     {
       "description": [
-        "Group builder images into one monthly PR"
+        "Update each Docker image across all apps in one PR"
       ],
       "matchDatasources": [
         "docker"
@@ -67,14 +67,8 @@
       "matchFileNames": [
         "apps/**"
       ],
-      "groupName": "builder images",
       "additionalBranchPrefix": "",
-      "semanticCommitScope": "deps",
-      "commitMessageTopic": "builder images",
-      "commitMessageExtra": "",
-      "schedule": [
-        "* * 1 * *"
-      ]
+      "semanticCommitScope": "deps"
     }
   ]
 }
