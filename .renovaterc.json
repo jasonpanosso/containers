@@ -56,6 +56,25 @@
       "commitMessageExtra": "( {{currentVersion}} → {{newVersion}} )",
       "commitMessageTopic": "{{depName}}",
       "semanticCommitScope": "{{parentDir}}"
+    },
+    {
+      "description": [
+        "Group builder images into one monthly PR"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchFileNames": [
+        "apps/**"
+      ],
+      "groupName": "builder images",
+      "additionalBranchPrefix": "",
+      "semanticCommitScope": "deps",
+      "commitMessageTopic": "builder images",
+      "commitMessageExtra": "",
+      "schedule": [
+        "* 0-3 1 * *"
+      ]
     }
   ]
 }
