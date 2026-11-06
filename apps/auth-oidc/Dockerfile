@@ -5,9 +5,10 @@ FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.24.4@sha256:93b41ef40b
 COPY --from=jq /jq /usr/local/bin/jq
 ARG VERSION
 WORKDIR /out
-RUN \
+RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
     asset="$(wget -qO- \
         -U "jasonpanosso/containers (https://github.com/jasonpanosso/containers)" \
+        ${GITHUB_TOKEN:+--header "Authorization: Bearer ${GITHUB_TOKEN}"} \
         "https://api.github.com/repos/christiaangoossens/hass-oidc-auth/releases/tags/${VERSION}" \
         | jq -e '.assets[] | select(.name == "hass-oidc-auth.zip")')" \
     && wget -qO /tmp/auth_oidc.zip "$(echo "$asset" | jq -r '.browser_download_url')" \
