@@ -5,10 +5,14 @@
     "docker:enableMajor",
     "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
+    ":maintainLockFilesWeekly",
     ":semanticCommits",
     ":timezone(America/Detroit)"
   ],
   "dependencyDashboardTitle": "Renovate Dashboard 🤖",
+  "nix": {
+    "enabled": true
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -69,6 +73,18 @@
       ],
       "additionalBranchPrefix": "",
       "semanticCommitScope": "deps"
+    },
+    {
+      "description": [
+        "flake.lock is updated wholesale by lockFileMaintenance, not per input"
+      ],
+      "matchManagers": [
+        "nix"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
     }
   ]
 }
