@@ -9,7 +9,9 @@
     ":semanticCommits",
     ":timezone(America/Detroit)"
   ],
-  "dependencyDashboardTitle": "Renovate Dashboard 🤖",
+  "dependencyDashboard": {
+    "title": "Renovate Dashboard 🤖"
+  },
   "nix": {
     "enabled": true
   },
