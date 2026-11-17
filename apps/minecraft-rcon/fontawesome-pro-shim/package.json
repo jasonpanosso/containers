@@ -1,0 +1,9 @@
+{
+  "name": "@fortawesome/pro-solid-svg-icons",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stand-in for Font Awesome Pro solid icons. Do not include @fortawesome/free-solid-svg-icons, it is installed in the dockerfile",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts"
+}
