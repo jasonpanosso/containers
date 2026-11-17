@@ -8,6 +8,9 @@ on:
       - main
     paths:
       - apps/**
+      - .github/scripts/changed-apps.sh
+      - .github/workflows/app-builder.yaml
+      - .github/workflows/pull-request.yaml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -19,7 +22,7 @@ permissions:
 jobs:
   changed:
     name: Get Changed Apps
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       apps: ${{ steps.changed.outputs.apps }}
     steps:
@@ -35,6 +38,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          # changes to the shared build pipeline rebuild every app
+          REBUILD_ALL_PATHS: >-
+            .github/scripts/changed-apps.sh
+            .github/workflows/app-builder.yaml
+            .github/workflows/pull-request.yaml
         run: |
           apps=$(.github/scripts/changed-apps.sh "$BASE" "$HEAD")
           echo "apps=$apps" >> "$GITHUB_OUTPUT"
