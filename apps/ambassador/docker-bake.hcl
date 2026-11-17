@@ -5,8 +5,8 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  // renovate: datasource=custom.modrinth-velocity depName=ambassador
-  default = "1.4.5"
+  // renovate: datasource=github-releases depName=adde0109/Ambassador
+  default = "v1.4.5"
 }
 
 group "default" {

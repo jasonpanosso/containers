@@ -40,15 +40,6 @@
       "datasourceTemplate": "docker"
     }
   ],
-  "customDatasources": {
-    "modrinth-velocity": {
-      "defaultRegistryUrlTemplate": "https://api.modrinth.com/v2/project/{{packageName}}/version?loaders=%5B%22velocity%22%5D",
-      "format": "json",
-      "transformTemplates": [
-        "{\"releases\": [$.{\"version\": version_number, \"releaseTimestamp\": date_published}]}"
-      ]
-    }
-  },
   "packageRules": [
     {
       "description": [
