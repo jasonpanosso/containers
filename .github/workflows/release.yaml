@@ -69,10 +69,10 @@ jobs:
       group: release-${{ matrix.app }}
       cancel-in-progress: false
     permissions:
-      attestations: write
+      attestations: write # app-builder attests images
       contents: read
-      id-token: write
-      packages: write
+      id-token: write # app-builder signs attestations
+      packages: write # app-builder pushes images to ghcr
     strategy:
       matrix:
         app: ${{ fromJSON(needs.changed.outputs.apps) }}

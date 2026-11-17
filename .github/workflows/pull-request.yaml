@@ -54,10 +54,11 @@ jobs:
       - changed
     uses: $/.github/workflows/app-builder.yaml
     permissions:
-      attestations: write
+      # app-builder jobs declare these; PR runs skip pushing and attesting
+      attestations: write # app-builder attests images
       contents: read
-      id-token: write
-      packages: write
+      id-token: write # app-builder signs attestations
+      packages: write # app-builder pushes images to ghcr
     strategy:
       matrix:
         app: ${{ fromJSON(needs.changed.outputs.apps) }}
