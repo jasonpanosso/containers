@@ -25,9 +25,8 @@ on:
           - info
         required: true
       version:
-        description: Renovate Version
-        default: latest
-        required: true
+        description: Renovate Version (blank uses the pinned version)
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -35,6 +34,10 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  # renovate: datasource=github-releases depName=renovatebot/renovate
+  PINNED_RENOVATE_VERSION: 44.239.0
 
 jobs:
   main:
@@ -68,4 +71,4 @@ jobs:
           RENOVATE_PLATFORM_COMMIT: enabled
         with:
           token: "${{ steps.app-token.outputs.token }}"
-          renovate-version: "${{ inputs.version || 'latest' }}"
+          renovate-version: "${{ inputs.version || env.PINNED_RENOVATE_VERSION }}"
