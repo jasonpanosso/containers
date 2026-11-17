@@ -12,7 +12,7 @@ on:
     inputs:
       app:
         type: string
-        description: App Name
+        description: App name, or "all" to release every app
         required: true
 
 permissions:
@@ -23,23 +23,35 @@ jobs:
     name: Get Changed Apps
     runs-on: ubuntu-26.04
     outputs:
-      apps: ${{ github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.app) || steps.changed.outputs.apps }}
+      apps: ${{ steps.dispatch.outputs.apps || steps.changed.outputs.apps }}
     steps:
-      - name: Validate Dispatch
+      - name: Get Dispatched Apps
         if: ${{ github.event_name == 'workflow_dispatch' }}
+        id: dispatch
         env:
           APP: ${{ inputs.app }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
           REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
         run: |
           if [[ "${REF}" != "refs/heads/${DEFAULT_BRANCH}" ]]; then
               echo "::error::Releases can only be dispatched from ${DEFAULT_BRANCH}"
               exit 1
           fi
-          if [[ ! "${APP}" =~ ^[a-z0-9-]+$ ]]; then
-              echo "::error::App name must match ^[a-z0-9-]+\$"
+          all="$(
+              gh api "repos/${GITHUB_REPOSITORY}/contents/apps?ref=${SHA}" \
+                  --jq '.[] | select(.type == "dir") | .name' | jq --raw-input --null-input --compact-output '[inputs]'
+          )"
+          if [[ "${APP}" == "all" ]]; then
+              apps="${all}"
+          elif jq --exit-status --arg app "${APP}" 'index($app)' <<< "${all}" > /dev/null; then
+              apps="$(jq --null-input --compact-output --arg app "${APP}" '[$app]')"
+          else
+              echo "::error::Unknown app; expected one of $(jq --raw-output 'join(", ")' <<< "${all}") or all"
               exit 1
           fi
+          echo "apps=${apps}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ github.event_name == 'push' }}
