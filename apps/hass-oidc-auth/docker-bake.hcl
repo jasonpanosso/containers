@@ -1,7 +1,7 @@
 target "docker-metadata-action" {}
 
 variable "APP" {
-  default = "auth-oidc"
+  default = "hass-oidc-auth"
 }
 
 variable "VERSION" {

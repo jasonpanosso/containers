@@ -1,7 +1,7 @@
 target "docker-metadata-action" {}
 
 variable "APP" {
-  default = "tab"
+  default = "tab-velocity"
 }
 
 variable "VERSION" {

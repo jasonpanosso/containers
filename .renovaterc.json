@@ -88,8 +88,8 @@
         "/eclipse-temurin$/"
       ],
       "matchFileNames": [
-        "apps/minimotd/**",
-        "apps/tab/**",
+        "apps/minimotd-velocity/**",
+        "apps/tab-velocity/**",
         "apps/velocity-scoreboard-api/**"
       ],
       "allowedVersions": "/^25\\./"

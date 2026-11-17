@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
-# Ambassador Velocity plugin jar built from source, for mounting as an image volume.
-
+# Ambassador Velocity plugin jar built from source
 FROM scratch AS src
 ARG VERSION
 ARG VERSION_COMMIT

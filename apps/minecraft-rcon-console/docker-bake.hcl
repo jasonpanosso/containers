@@ -1,17 +1,17 @@
 target "docker-metadata-action" {}
 
 variable "APP" {
-  default = "minimotd"
+  default = "minecraft-rcon-console"
 }
 
 variable "VERSION" {
-  // renovate-git-tag: depName=jpenilla/MiniMOTD
-  default = "v2.2.5"
+  // renovate-git-tag: depName=Rauks/Minecraft-RCON-Console
+  default = "2.8.7"
 }
 
 // commit of the VERSION tag
 variable "VERSION_COMMIT" {
-  default = "8703ac088f7dff99b2c5c462e4ef33688f9feb46"
+  default = "ed3b35889d67ed0417aa46f4483bdcee05b46e65"
 }
 
 group "default" {
