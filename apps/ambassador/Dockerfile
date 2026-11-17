@@ -31,4 +31,12 @@ RUN sh ./gradlew --no-daemon --console=plain --init-script /reproducible.gradle 
     && cp build/libs/Ambassador-Velocity-*-all.jar /out/ambassador.jar
 
 FROM scratch
+ARG VERSION
+ARG VERSION_COMMIT
 COPY --from=plugin --chmod=0644 /out/ambassador.jar /ambassador.jar
+COPY --from=src --chmod=0644 /LICENSE /LICENSE
+# LGPL-2.1: where the corresponding source for this build lives
+COPY --chmod=0644 <<EOF /SOURCE
+Ambassador ${VERSION}, built unmodified from:
+https://github.com/adde0109/Ambassador/tree/${VERSION_COMMIT}
+EOF

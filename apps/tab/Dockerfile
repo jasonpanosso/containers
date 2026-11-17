@@ -19,3 +19,4 @@ RUN ./gradlew --no-daemon --console=plain :velocity:shadowJar \
 
 FROM scratch
 COPY --from=plugin --chmod=0644 /out/tab.jar /tab.jar
+COPY --from=src --chmod=0644 /LICENSE /LICENSE

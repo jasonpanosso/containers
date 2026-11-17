@@ -52,6 +52,9 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 COPY --from=api --chmod=0755 /minecraft-rcon /usr/local/bin/minecraft-rcon
 COPY --from=ui /ui/dist/browser /usr/share/minecraft-rcon/www
+COPY --from=src /LICENSE /usr/share/doc/minecraft-rcon/LICENSE
+# licenses of the npm packages bundled into the UI, written by the production ng build
+COPY --from=ui /ui/dist/3rdpartylicenses.txt /usr/share/doc/minecraft-rcon/ui-3rdpartylicenses.txt
 
 # no RCON_HOST/RCON_PASSWORD defaults: the server starts, but rcon requests fail until they are set
 ENV RCON_PORT=25575 \

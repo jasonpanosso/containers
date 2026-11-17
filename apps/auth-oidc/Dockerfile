@@ -15,6 +15,7 @@ RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
     && wget -qO /tmp/auth_oidc.zip "$(echo "$asset" | jq -r '.browser_download_url')" \
     && echo "$(echo "$asset" | jq -r '.digest | ltrimstr("sha256:")')  /tmp/auth_oidc.zip" | sha256sum -c \
     && unzip -q /tmp/auth_oidc.zip -d /out \
+    && wget -qO /out/LICENSE "https://raw.githubusercontent.com/christiaangoossens/hass-oidc-auth/${VERSION}/LICENSE.md" \
     && find /out -type d -exec chmod 0755 {} + \
     && find /out -type f -exec chmod 0644 {} +
 

@@ -18,3 +18,4 @@ RUN ./gradlew --no-daemon --console=plain :minimotd-velocity:shadowJar \
 
 FROM scratch
 COPY --from=plugin --chmod=0644 /out/minimotd.jar /minimotd.jar
+COPY --from=src --chmod=0644 /license.txt /LICENSE

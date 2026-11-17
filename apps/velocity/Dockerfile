@@ -14,7 +14,11 @@ RUN \
         "https://fill.papermc.io/v3/projects/velocity/versions/${VERSION#*v}/builds/latest")" \
     && echo "$build" | jq -e '.channel == "STABLE"' \
     && wget -qO velocity.jar "$(echo "$build" | jq -r '.downloads."server:default".url')" \
-    && echo "$(echo "$build" | jq -r '.downloads."server:default".checksums.sha256')  velocity.jar" | sha256sum -c
+    && echo "$(echo "$build" | jq -r '.downloads."server:default".checksums.sha256')  velocity.jar" | sha256sum -c \
+    && commit="$(echo "$build" | jq -er '.commits[0].sha')" \
+    && wget -qO LICENSE "https://raw.githubusercontent.com/PaperMC/Velocity/${commit}/LICENSE" \
+    && printf 'Velocity %s (PaperMC build %s), unmodified, built from:\nhttps://github.com/PaperMC/Velocity/tree/%s\n' \
+        "${VERSION#v}" "$(echo "$build" | jq -r '.id')" "${commit}" > SOURCE
 
 FROM scratch
-COPY --from=velocity --chmod=0644 /out/velocity.jar /velocity.jar
+COPY --from=velocity --chmod=0644 /out/velocity.jar /out/LICENSE /out/SOURCE /

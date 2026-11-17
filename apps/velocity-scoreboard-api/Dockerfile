@@ -20,3 +20,4 @@ RUN ./gradlew --no-daemon --console=plain :plugin:shadowJar \
 
 FROM scratch
 COPY --from=plugin --chmod=0644 /out/velocity-scoreboard-api.jar /velocity-scoreboard-api.jar
+COPY --from=src --chmod=0644 /LICENSE /LICENSE
