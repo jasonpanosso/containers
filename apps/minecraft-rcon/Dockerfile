@@ -3,7 +3,9 @@
 
 FROM scratch AS src
 ARG VERSION
-ADD https://github.com/Rauks/Minecraft-RCON-Console.git#${VERSION} /
+ARG VERSION_COMMIT
+# fails unless the tag still points at the pinned commit
+ADD --checksum=${VERSION_COMMIT} https://github.com/Rauks/Minecraft-RCON-Console.git#${VERSION} /
 
 FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.1-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS ui
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
@@ -51,7 +53,7 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11
 COPY --from=api --chmod=0755 /minecraft-rcon /usr/local/bin/minecraft-rcon
 COPY --from=ui /ui/dist/browser /usr/share/minecraft-rcon/www
 
-# do not set RCON_HOST and RCON_PASSWORD, fail if not provided
+# no RCON_HOST/RCON_PASSWORD defaults: the server starts, but rcon requests fail until they are set
 ENV RCON_PORT=25575 \
     ROOT_WWW=/usr/share/minecraft-rcon/www \
     ROCKET_ADDRESS=0.0.0.0 \

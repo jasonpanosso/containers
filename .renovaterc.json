@@ -18,15 +18,15 @@
     },
     {
       "customType": "regex",
-      "description": "Process Annotations in Dockerfiles",
+      "description": "Process git tags pinned together with their commit in Docker Bake",
       "managerFilePatterns": [
-        "/(^|/)Dockerfile$/"
+        "/(^|/)docker-bake\\.hcl$/"
       ],
       "matchStrings": [
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\n.+(:\\s|=)(&\\S+\\s)?(?<currentValue>\\S+)"
+        "renovate-git-tag: depName=(?<depName>\\S+).*\\n\\s*default = \"(?<currentValue>[^\"]+)\"\\n\\}\\n(?:\\n|//.*\\n)*variable \"VERSION_COMMIT\" \\{\\n\\s*default = \"(?<currentDigest>[a-f0-9]{40})\""
       ],
-      "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
-      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
@@ -73,6 +73,16 @@
       ],
       "additionalBranchPrefix": "",
       "semanticCommitScope": "deps"
+    },
+    {
+      "description": [
+        "Auto-merge through PRs so the main ruleset's required checks gate it (the shared preset pushes to main untested)"
+      ],
+      "matchPackageNames": [
+        "*"
+      ],
+      "automergeType": "pr",
+      "ignoreTests": false
     }
   ]
 }

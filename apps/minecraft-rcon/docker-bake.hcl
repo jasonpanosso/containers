@@ -5,8 +5,13 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  // renovate: datasource=github-tags depName=Rauks/Minecraft-RCON-Console
+  // renovate-git-tag: depName=Rauks/Minecraft-RCON-Console
   default = "2.8.7"
+}
+
+// commit of the VERSION tag
+variable "VERSION_COMMIT" {
+  default = "ed3b35889d67ed0417aa46f4483bdcee05b46e65"
 }
 
 group "default" {
@@ -17,6 +22,7 @@ target "image" {
   inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
+    VERSION_COMMIT = "${VERSION_COMMIT}"
     SOURCE_DATE_EPOCH = "0"
   }
   labels = {
