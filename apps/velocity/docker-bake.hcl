@@ -20,7 +20,6 @@ target "image" {
     SOURCE_DATE_EPOCH = "0"
   }
   labels = {
-    "org.opencontainers.image.source" = "https://github.com/jasonpanosso/containers"
     "org.opencontainers.image.version" = "${VERSION}"
   }
 }
