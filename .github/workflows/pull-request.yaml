@@ -6,11 +6,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - apps/**
-      - .github/scripts/changed-apps.sh
-      - .github/workflows/app-builder.yaml
-      - .github/workflows/pull-request.yaml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -66,3 +61,18 @@ jobs:
     with:
       app: ${{ matrix.app }}
       release: false
+
+  # single required check for the main ruleset: passes when every build passed or was skipped
+  status:
+    name: PR Status
+    if: ${{ always() }}
+    needs:
+      - changed
+      - build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Check Results
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq --exit-status 'all(.[]; . == "success" or . == "skipped")' <<< "${RESULTS}"
