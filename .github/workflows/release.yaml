@@ -23,16 +23,25 @@ jobs:
     name: Get Changed Apps
     runs-on: ubuntu-latest
     outputs:
-      apps: ${{ github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.app) || steps.changed-files.outputs.changed_files }}
+      apps: ${{ github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.app) || steps.changed.outputs.apps }}
     steps:
-      - name: Get Changed Files
+      - name: Checkout
         if: ${{ github.event_name == 'push' }}
-        uses: bjw-s-labs/action-changed-files@147be9638332cf68fd60714a610509d7a9360d60 # v0.7.0
-        id: changed-files
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: apps
-          include_only_directories: true
-          max_depth: 1
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Get Changed Apps
+        if: ${{ github.event_name == 'push' }}
+        id: changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.before }}
+          HEAD: ${{ github.event.after }}
+        run: |
+          apps=$(.github/scripts/changed-apps.sh "$BASE" "$HEAD")
+          echo "apps=$apps" >> "$GITHUB_OUTPUT"
 
   build:
     if: ${{ needs.changed.outputs.apps != '[]' }}
