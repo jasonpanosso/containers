@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
+# Rauks/Minecraft-RCON-Console built from source with paid fonts swapped out
+
+FROM scratch AS src
+ARG VERSION
+ADD https://github.com/Rauks/Minecraft-RCON-Console.git#${VERSION} /
+
+FROM --platform=$BUILDPLATFORM docker.io/library/node:24.22.3-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS ui
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+ARG VERSION
+COPY --from=src /ui /ui
+WORKDIR /ui
+COPY fontawesome-pro-shim /fontawesome-pro-shim
+RUN <<'EOF'
+set -eu
+
+# swap paid icon package with standin (./fontawesome-pro-shim)
+rm -f .npmrc
+sed -i 's|https://npm.fontawesome.com/|https://registry.npmjs.org/|' package-lock.json
+fa="$(node -p 'require("./package-lock.json").packages["node_modules/@fortawesome/fontawesome-svg-core"].version')"
+npm uninstall --no-audit --no-fund @fortawesome/pro-solid-svg-icons @fortawesome/pro-regular-svg-icons
+npm install --install-links --no-audit --no-fund /fontawesome-pro-shim \
+    "@fortawesome/free-solid-svg-icons@${fa}" \
+    "@fortawesome/pro-regular-svg-icons@npm:@fortawesome/free-regular-svg-icons@${fa}"
+sed -i "s|%VERSION_SLUG%|${VERSION}|" src/environments/environment.prod.ts
+
+# fail if upstream uses a pro icon the stand-in doesn't cover
+node -e '
+const fs = require("fs"), path = require("path");
+const { fas } = require("@fortawesome/pro-solid-svg-icons");
+const have = new Set(Object.values(fas).flatMap(d => [d.iconName, ...d.icon[2].filter(a => typeof a === "string")]));
+const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+const used = new Set(walk("src").filter(f => f.endsWith(".html")).flatMap(f => [...fs.readFileSync(f, "utf8").matchAll(/\sicon="([^"]+)"/g)].map(m => m[1])));
+JSON.parse(fs.readFileSync("src/config/shortcuts.json", "utf8")).forEach(s => used.add(s.icon));
+const missing = [...used].filter(n => !have.has(n));
+if (missing.length) { console.error("Icons missing from the stand-in:", missing.join(", ")); process.exit(1); }
+'
+npx ng build --configuration production
+EOF
+
+# Native build per platform (CI runs one runner per arch); musl targets link
+# statically by default, so the binary runs on distroless/static.
+FROM docker.io/library/rust:1.100.0-alpine3.24@sha256:de1e0058543a81ed7b046629167db587c67a94bdf37cce14eb27f0ec83baaffb AS api
+COPY --from=src / /src
+WORKDIR /src
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release --locked \
+    && cp target/release/minecraft-rcon /minecraft-rcon
+
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
+COPY --from=api --chmod=0755 /minecraft-rcon /usr/local/bin/minecraft-rcon
+COPY --from=ui /ui/dist/browser /usr/share/minecraft-rcon/www
+
+# do not set RCON_HOST and RCON_PASSWORD, fail if not provided
+ENV RCON_PORT=25575 \
+    ROOT_WWW=/usr/share/minecraft-rcon/www \
+    ROCKET_ADDRESS=0.0.0.0 \
+    ROCKET_PORT=8888 \
+    ROCKET_LIMITS={json="1 MiB"} \
+    ROCKET_IP_HEADER=X-Forwarded-For \
+    ROCKET_CLI_COLORS=false \
+    RUST_LOG=warn,minecraft_rcon=info \
+    RUST_TRACES=info
+EXPOSE 8888
+ENTRYPOINT ["/usr/local/bin/minecraft-rcon"]
