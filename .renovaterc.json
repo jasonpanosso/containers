@@ -67,6 +67,48 @@
     },
     {
       "description": [
+        "Eclipse Temurin JDK tags (e.g. 25.0.5_8-jdk-noble, 25.0.4.1_1-jdk-noble); docker versioning reads the _N suffix as a prerelease"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/eclipse-temurin$/"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:\\.(?<build>\\d+))?_(?<revision>\\d+)(?<compatibility>-jdk-noble)$"
+    },
+    {
+      "description": [
+        "Hold MiniMOTD's JDK at 25, the version upstream builds with"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/eclipse-temurin$/"
+      ],
+      "matchFileNames": [
+        "apps/minimotd/**"
+      ],
+      "allowedVersions": "/^25\\./"
+    },
+    {
+      "description": [
+        "Hold Ambassador's JDK at 17 for its Gradle 8.1.1 build and bundled Velocity submodule"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/eclipse-temurin$/"
+      ],
+      "matchFileNames": [
+        "apps/ambassador/**"
+      ],
+      "allowedVersions": "/^17\\./"
+    },
+    {
+      "description": [
         "Auto-merge through PRs so the main ruleset's required checks gate it (the shared preset pushes to main untested)"
       ],
       "matchPackageNames": [
