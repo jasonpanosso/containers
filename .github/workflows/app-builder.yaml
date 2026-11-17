@@ -17,41 +17,73 @@ on:
 permissions:
   contents: read
 
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+
 jobs:
-  build:
-    name: Build ${{ inputs.app }}
-    runs-on: ubuntu-latest
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
-      packages: write
+  prepare:
+    name: Prepare ${{ inputs.app }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.bake.outputs.matrix }}
+      version: ${{ steps.bake.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Get App Version
-        id: version
+      # setup build matrix from image-all platforms
+      - name: Read Bake Definition
+        id: bake
         working-directory: ./apps/${{ inputs.app }}
         run: |
-          VERSION=$(\
+          version="$(
               docker buildx bake --list type=variables,format=json --progress=quiet \
-                  | jq --raw-output '.[] | select(.name == "VERSION") | .value' \
-          )
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+                  | jq --raw-output '.[] | select(.name == "VERSION") | .value'
+          )"
+          matrix="$(
+              docker buildx bake image-all --print --progress=quiet \
+                  | jq --compact-output '.target."image-all".platforms | map(
+                      {
+                          "linux/amd64": {arch: "amd64", runner: "ubuntu-26.04"},
+                          "linux/arm64": {arch: "arm64", runner: "ubuntu-26.04-arm"}
+                      }[.] as $runner
+                      | if $runner then {platform: .} + $runner else error("no runner for platform \(.)") end
+                  )'
+          )"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
 
-      - name: Build App Metadata
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        id: meta
+  build:
+    name: Build ${{ inputs.app }} (${{ matrix.platform }})
+    needs:
+      - prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      attestations: write # record this platform's build provenance attestation
+      contents: read
+      id-token: write # OIDC token to sign the attestation
+      packages: write # push this platform's image and attestation by digest
+    outputs:
+      amd64_digest: ${{ steps.digest.outputs.amd64_digest }}
+      arm64_digest: ${{ steps.digest.outputs.arm64_digest }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          flavor: latest=false
-          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
-          tags: type=raw,value=${{ steps.version.outputs.version }}
+          persist-credentials: false
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
 
       - name: Login to GitHub Container Registry
         if: ${{ inputs.release }}
@@ -61,6 +93,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
+      - name: Image Metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with: &metadata
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.version }}-{{sha}}
+          labels: &metadata-overrides |
+            org.opencontainers.image.title=${{ inputs.app }}
+            org.opencontainers.image.description=${{ inputs.app }} image built by ${{ github.repository }}
+            org.opencontainers.image.created={{commit_date 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'}}
+          annotations: *metadata-overrides
+
       - name: Build App
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         id: bake
@@ -69,16 +116,115 @@ jobs:
         with:
           files: |
             ./docker-bake.hcl
-            cwd://${{ steps.meta.outputs.bake-file-tags }}
+            cwd://${{ steps.meta.outputs.bake-file-labels }}
           provenance: false
-          push: ${{ inputs.release }}
           source: ./apps/${{ inputs.app }}
           targets: image-all
+          set: |
+            image-all.platform=${{ matrix.platform }}
+            image-all.tags=${{ env.IMAGE }}
+            image-all.output=type=image,rewrite-timestamp=true${{ inputs.release && ',push-by-digest=true,name-canonical=true,push=true' || '' }}
+            image-all.cache-from=type=gha,scope=${{ inputs.app }}-${{ matrix.arch }}
+            image-all.cache-to=type=gha,scope=${{ inputs.app }}-${{ matrix.arch }},mode=max
+
+      - name: Export Digest
+        id: digest
+        if: ${{ inputs.release }}
+        env:
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)['image-all']['containerimage.digest'] }}
+        run: echo "${ARCH}_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Attest Build Provenance
         if: ${{ inputs.release }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
+          create-storage-record: false # only supported for org-owned repos
           push-to-registry: true
           subject-digest: ${{ fromJSON(steps.bake.outputs.metadata)['image-all']['containerimage.digest'] }}
-          subject-name: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+          subject-name: ${{ env.IMAGE }}
+
+  merge:
+    name: Publish ${{ inputs.app }}
+    if: ${{ inputs.release }}
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      attestations: write # record the build provenance attestation
+      contents: read
+      id-token: write # OIDC token to sign the attestation
+      packages: write # push the tagged manifest list and attestation
+    steps:
+      # Skip publishing if a newer change to this app is already on the default branch
+      - name: Check Commit Is Current
+        id: current
+        env:
+          APP: ${{ inputs.app }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          latest="$(
+              gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${DEFAULT_BRANCH}&path=apps/${APP}&per_page=1" \
+                  --jq '.[0].sha'
+          )"
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${latest}...${SHA}" --jq '.status')"
+          if [[ "${status}" == "identical" || "${status}" == "ahead" ]]; then
+              echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "::notice::Not publishing: ${SHA} predates the latest change to apps/${APP} (${latest})"
+              echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Image Metadata
+        if: ${{ steps.current.outputs.current == 'true' }}
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with: *metadata
+
+      - name: Login to GitHub Container Registry
+        if: ${{ steps.current.outputs.current == 'true' }}
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Every platform in the matrix must have pushed a digest.
+      - name: Create Manifest List
+        if: ${{ steps.current.outputs.current == 'true' }}
+        id: manifest
+        env:
+          AMD64_DIGEST: ${{ needs.build.outputs.amd64_digest }}
+          ARM64_DIGEST: ${{ needs.build.outputs.arm64_digest }}
+          MATRIX: ${{ needs.prepare.outputs.matrix }}
+          METADATA: ${{ steps.meta.outputs.json }}
+        run: |
+          refs=()
+          for arch in $(jq --raw-output '.[].arch' <<< "${MATRIX}"); do
+              var="${arch^^}_DIGEST"
+              refs+=("${IMAGE}@${!var:?no digest for ${arch}}")
+          done
+          args=()
+          tags="$(jq --raw-output '.tags[]' <<< "${METADATA}")"
+          annotations="$(jq --raw-output '.annotations[]' <<< "${METADATA}")"
+          while IFS= read -r tag; do args+=(--tag "${tag}"); done <<< "${tags}"
+          while IFS= read -r annotation; do args+=(--annotation "${annotation}"); done <<< "${annotations}"
+          docker buildx imagetools create --metadata-file "${RUNNER_TEMP}/manifest.json" \
+              "${args[@]}" "${refs[@]}"
+          digest="$(jq --raw-output '."containerimage.descriptor".digest' "${RUNNER_TEMP}/manifest.json")"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest Build Provenance
+        if: ${{ steps.current.outputs.current == 'true' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          create-storage-record: false # only supported for org-owned repos
+          push-to-registry: true
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          subject-name: ${{ env.IMAGE }}
