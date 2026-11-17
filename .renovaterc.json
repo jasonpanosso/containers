@@ -79,7 +79,7 @@
     },
     {
       "description": [
-        "Hold MiniMOTD's JDK at 25, the version upstream builds with"
+        "Hold JDK at 25 for apps whose upstream builds with it"
       ],
       "matchDatasources": [
         "docker"
@@ -88,7 +88,9 @@
         "/eclipse-temurin$/"
       ],
       "matchFileNames": [
-        "apps/minimotd/**"
+        "apps/minimotd/**",
+        "apps/tab/**",
+        "apps/velocity-scoreboard-api/**"
       ],
       "allowedVersions": "/^25\\./"
     },
