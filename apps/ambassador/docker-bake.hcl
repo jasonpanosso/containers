@@ -5,8 +5,13 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  // renovate: datasource=github-releases depName=adde0109/Ambassador
+  // renovate-git-tag: depName=adde0109/Ambassador
   default = "v1.4.5"
+}
+
+// commit of the VERSION tag
+variable "VERSION_COMMIT" {
+  default = "349ce41f5fba50653d0aec8ebb7d77f68a5d00e1"
 }
 
 group "default" {
@@ -17,9 +22,9 @@ target "image" {
   inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
+    VERSION_COMMIT = "${VERSION_COMMIT}"
     SOURCE_DATE_EPOCH = "0"
   }
-  secret = ["id=github_token,env=GITHUB_TOKEN"]
   labels = {
     "org.opencontainers.image.version" = "${VERSION}"
   }

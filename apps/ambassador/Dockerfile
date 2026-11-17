@@ -1,23 +1,34 @@
 # syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
-# Ambassador Velocity plugin jar only, for mounting as an image volume.
+# Ambassador Velocity plugin jar built from source, for mounting as an image volume.
 
-FROM --platform=$BUILDPLATFORM ghcr.io/jqlang/jq:1.8.2@sha256:b9c68867e5766576263a222e91db3de422d802069c7af70440e667a95344e486 AS jq
-FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS plugin
-SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
-COPY --from=jq /jq /usr/local/bin/jq
+FROM scratch AS src
 ARG VERSION
-WORKDIR /out
-RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
-    asset="$(wget -qO- \
-        -U "jasonpanosso/containers (https://github.com/jasonpanosso/containers)" \
-        ${GITHUB_TOKEN:+--header "Authorization: Bearer ${GITHUB_TOKEN}"} \
-        "https://api.github.com/repos/adde0109/Ambassador/releases/tags/${VERSION}" \
-        | jq -e '[.assets[] | select(.name | test("^Ambassador-Velocity-.*-all\\.jar$"))] \
-            | if length == 1 then .[0] else error("expected one Velocity jar, found \(length)") end')" \
-    && wget -qO ambassador.jar "$(echo "$asset" | jq -r '.browser_download_url')" \
-    && digest="$(echo "$asset" | jq -r '.digest // "" | ltrimstr("sha256:")')" \
-    && if [ -n "$digest" ]; then echo "$digest  ambassador.jar" | sha256sum -c; fi
+ARG VERSION_COMMIT
+# fails unless the tag still points at the pinned commit; keeps .git (and the
+# Velocity submodule) because Velocity's build runs `git rev-parse HEAD`
+ADD --keep-git-dir=true --checksum=${VERSION_COMMIT} https://github.com/adde0109/Ambassador.git#${VERSION} /
+
+FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:17.0.21_9-jdk-noble@sha256:1bedb04434bd275ef072355e9caec2a22be5240fbe82ad51a59323f2bbcab4a6 AS plugin
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+RUN apt-get update -qq \
+    && apt-get install -qqy --no-install-recommends git >/dev/null \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=src / /src
+# Gradle 8 stamps jar entries with build-time mtimes; Gradle 9 defaults to this
+COPY <<'EOF' /reproducible.gradle
+allprojects {
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+}
+EOF
+WORKDIR /src
+# gradlew isn't committed as executable
+RUN sh ./gradlew --no-daemon --console=plain --init-script /reproducible.gradle shadowJar \
+    && mkdir /out \
+    && cp build/libs/Ambassador-Velocity-*-all.jar /out/ambassador.jar
 
 FROM scratch
 COPY --from=plugin --chmod=0644 /out/ambassador.jar /ambassador.jar
