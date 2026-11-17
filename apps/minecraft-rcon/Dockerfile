@@ -5,7 +5,7 @@ FROM scratch AS src
 ARG VERSION
 ADD https://github.com/Rauks/Minecraft-RCON-Console.git#${VERSION} /
 
-FROM --platform=$BUILDPLATFORM docker.io/library/node:24.22.3-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.1-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS ui
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 ARG VERSION
 COPY --from=src /ui /ui
