@@ -22,7 +22,7 @@ permissions:
 jobs:
   changed:
     name: Get Changed Apps
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       apps: ${{ steps.changed.outputs.apps }}
     steps:

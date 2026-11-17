@@ -21,7 +21,7 @@ permissions:
 jobs:
   changed:
     name: Get Changed Apps
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       apps: ${{ github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.app) || steps.changed.outputs.apps }}
     steps:

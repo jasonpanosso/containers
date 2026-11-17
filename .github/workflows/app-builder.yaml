@@ -145,7 +145,7 @@ jobs:
           subject-name: ${{ env.IMAGE }}
 
   merge:
-    name: Publish ${{ inputs.app }}
+    name: Publish
     if: ${{ inputs.release }}
     needs:
       - prepare
