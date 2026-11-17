@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.bake.outputs.matrix }}
+      revision: ${{ steps.revision.outputs.revision }}
       version: ${{ steps.bake.outputs.version }}
     steps:
       - name: Checkout
@@ -55,6 +56,20 @@ jobs:
           )"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+      # last commit that changed this app, so unrelated commits don't change the image
+      - name: Get App Revision
+        id: revision
+        env:
+          APP: ${{ inputs.app }}
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          revision="$(
+              gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${SHA}&path=apps/${APP}&per_page=1" \
+                  --jq '.[0].sha'
+          )"
+          echo "revision=${revision:?no commit found for apps/${APP}}" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ inputs.app }} (${{ matrix.platform }})
@@ -102,10 +117,12 @@ jobs:
           tags: |
             type=raw,value=${{ needs.prepare.outputs.version }}
             type=raw,value=${{ needs.prepare.outputs.version }}-{{sha}}
+          # created and revision stay fixed until the app changes, so rebuilds keep their digest
           labels: &metadata-overrides |
             org.opencontainers.image.title=${{ inputs.app }}
             org.opencontainers.image.description=${{ inputs.app }} image built by ${{ github.repository }}
-            org.opencontainers.image.created={{commit_date 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'}}
+            org.opencontainers.image.created=1970-01-01T00:00:00Z
+            org.opencontainers.image.revision=${{ needs.prepare.outputs.revision }}
           annotations: *metadata-overrides
 
       - name: Build App
