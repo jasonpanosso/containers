@@ -5,8 +5,13 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  // renovate: datasource=github-releases depName=christiaangoossens/hass-oidc-auth
+  // renovate-git-tag: depName=christiaangoossens/hass-oidc-auth
   default = "v1.2.1"
+}
+
+// commit of the VERSION tag
+variable "VERSION_COMMIT" {
+  default = "0699a6774340e1440e770690c8af922bd933a1e7"
 }
 
 group "default" {
@@ -17,9 +22,9 @@ target "image" {
   inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
+    VERSION_COMMIT = "${VERSION_COMMIT}"
     SOURCE_DATE_EPOCH = "0"
   }
-  secret = ["id=github_token,env=GITHUB_TOKEN"]
   labels = {
     "org.opencontainers.image.version" = "${VERSION}"
   }

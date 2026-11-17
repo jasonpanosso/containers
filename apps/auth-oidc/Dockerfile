@@ -1,21 +1,23 @@
 # syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
-FROM --platform=$BUILDPLATFORM ghcr.io/jqlang/jq:1.8.2@sha256:b9c68867e5766576263a222e91db3de422d802069c7af70440e667a95344e486 AS jq
-FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS integration
-SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
-COPY --from=jq /jq /usr/local/bin/jq
+# hass-oidc-auth Home Assistant integration built from source, for mounting as an image volume.
+
+FROM scratch AS src
 ARG VERSION
-WORKDIR /out
-RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
-    asset="$(wget -qO- \
-        -U "jasonpanosso/containers (https://github.com/jasonpanosso/containers)" \
-        ${GITHUB_TOKEN:+--header "Authorization: Bearer ${GITHUB_TOKEN}"} \
-        "https://api.github.com/repos/christiaangoossens/hass-oidc-auth/releases/tags/${VERSION}" \
-        | jq -e '.assets[] | select(.name == "hass-oidc-auth.zip")')" \
-    && wget -qO /tmp/auth_oidc.zip "$(echo "$asset" | jq -r '.browser_download_url')" \
-    && echo "$(echo "$asset" | jq -r '.digest | ltrimstr("sha256:")')  /tmp/auth_oidc.zip" | sha256sum -c \
-    && unzip -q /tmp/auth_oidc.zip -d /out \
-    && wget -qO /out/LICENSE "https://raw.githubusercontent.com/christiaangoossens/hass-oidc-auth/${VERSION}/LICENSE.md" \
+ARG VERSION_COMMIT
+# fails unless the tag still points at the pinned commit
+ADD --checksum=${VERSION_COMMIT} https://github.com/christiaangoossens/hass-oidc-auth.git#${VERSION} /
+
+# upstream's scripts/build: generate static/style.css with Tailwind, then ship custom_components/auth_oidc
+FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.1-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS integration
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+COPY --from=src / /src
+WORKDIR /src
+RUN npm ci --no-audit --no-fund \
+    && npm run css \
+    && mkdir /out \
+    && cp -r custom_components/auth_oidc/. /out/ \
+    && cp LICENSE.md /out/LICENSE \
     && find /out -type d -exec chmod 0755 {} + \
     && find /out -type f -exec chmod 0644 {} +
 
