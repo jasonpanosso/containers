@@ -27,7 +27,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.bake.outputs.matrix }}
-      revision: ${{ steps.revision.outputs.revision }}
       version: ${{ steps.bake.outputs.version }}
     steps:
       - name: Checkout
@@ -54,22 +53,10 @@ jobs:
                       | if $runner then {platform: .} + $runner else error("no runner for platform \(.)") end
                   )'
           )"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
-
-      # last commit that changed this app, so unrelated commits don't change the image
-      - name: Get App Revision
-        id: revision
-        env:
-          APP: ${{ inputs.app }}
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          revision="$(
-              gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${SHA}&path=apps/${APP}&per_page=1" \
-                  --jq '.[0].sha'
-          )"
-          echo "revision=${revision:?no commit found for apps/${APP}}" >> "$GITHUB_OUTPUT"
+          {
+              echo "version=${version}"
+              echo "matrix=${matrix}"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ inputs.app }} (${{ matrix.platform }})
@@ -114,26 +101,30 @@ jobs:
         with: &metadata
           images: ${{ env.IMAGE }}
           flavor: latest=false
-          tags: |
-            type=raw,value=${{ needs.prepare.outputs.version }}
-            type=raw,value=${{ needs.prepare.outputs.version }}-{{sha}}
-          # created and revision stay fixed until the app changes, so rebuilds keep their digest
+          tags: type=raw,value=${{ needs.prepare.outputs.version }}
+          # created is fixed so rebuilds of unchanged inputs keep their digest
           labels: &metadata-overrides |
             org.opencontainers.image.title=${{ inputs.app }}
             org.opencontainers.image.description=${{ inputs.app }} image built by ${{ github.repository }}
             org.opencontainers.image.created=1970-01-01T00:00:00Z
-            org.opencontainers.image.revision=${{ needs.prepare.outputs.revision }}
           annotations: *metadata-overrides
+
+      - name: Drop Unused Labels
+        id: labels
+        env:
+          LABELS: ${{ steps.meta.outputs.bake-file-labels }}
+        run: |
+          jq 'del(.target."docker-metadata-action".labels["org.opencontainers.image.revision", "org.opencontainers.image.licenses"])' \
+              "${LABELS}" > "${RUNNER_TEMP}/labels.json"
+          echo "file=${RUNNER_TEMP}/labels.json" >> "$GITHUB_OUTPUT"
 
       - name: Build App
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         id: bake
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         with:
           files: |
             ./docker-bake.hcl
-            cwd://${{ steps.meta.outputs.bake-file-labels }}
+            cwd://${{ steps.labels.outputs.file }}
           provenance: false
           source: ./apps/${{ inputs.app }}
           targets: image-all
@@ -229,7 +220,11 @@ jobs:
           done
           args=()
           tags="$(jq --raw-output '.tags[]' <<< "${METADATA}")"
-          annotations="$(jq --raw-output '.annotations[]' <<< "${METADATA}")"
+          annotations="$(
+              jq --raw-output '.annotations[]
+                  | select(test("^index:org\\.opencontainers\\.image\\.(revision|licenses)=") | not)' \
+                  <<< "${METADATA}"
+          )"
           while IFS= read -r tag; do args+=(--tag "${tag}"); done <<< "${tags}"
           while IFS= read -r annotation; do args+=(--annotation "${annotation}"); done <<< "${annotations}"
           docker buildx imagetools create --metadata-file "${RUNNER_TEMP}/manifest.json" \
