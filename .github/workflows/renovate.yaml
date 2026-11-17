@@ -43,6 +43,10 @@ jobs:
   main:
     name: Renovate
     runs-on: ubuntu-26.04
+    # holds the bot app secrets, restricted to the default branch
+    environment:
+      name: renovate
+      deployment: false
     permissions:
       packages: read # look up image and package versions in ghcr
     steps:
