@@ -19,7 +19,6 @@ target "image" {
     VERSION = "${VERSION}"
     SOURCE_DATE_EPOCH = "0"
   }
-  secret = ["id=github_token,env=GITHUB_TOKEN"]
   labels = {
     "org.opencontainers.image.source" = "https://github.com/jasonpanosso/containers"
     "org.opencontainers.image.version" = "${VERSION}"
