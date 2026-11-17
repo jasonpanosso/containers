@@ -8,9 +8,10 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 COPY --from=jq /jq /usr/local/bin/jq
 ARG VERSION
 WORKDIR /out
-RUN \
+RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
     asset="$(wget -qO- \
         -U "jasonpanosso/containers (https://github.com/jasonpanosso/containers)" \
+        ${GITHUB_TOKEN:+--header "Authorization: Bearer ${GITHUB_TOKEN}"} \
         "https://api.github.com/repos/adde0109/Ambassador/releases/tags/${VERSION}" \
         | jq -e '[.assets[] | select(.name | test("^Ambassador-Velocity-.*-all\\.jar$"))] \
             | if length == 1 then .[0] else error("expected one Velocity jar, found \(length)") end')" \
