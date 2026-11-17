@@ -42,7 +42,7 @@ EOF
 
 # Native build per platform (CI runs one runner per arch); musl targets link
 # statically by default, so the binary runs on distroless/static.
-FROM docker.io/library/rust:1.100.0-alpine3.24@sha256:de1e0058543a81ed7b046629167db587c67a94bdf37cce14eb27f0ec83baaffb AS api
+FROM docker.io/library/rust:1.100.0-alpine3.24@sha256:8d0e82abfdf9a38071e07cabc5afba4ddbe077631a80e4e742a760c38beadc33 AS api
 COPY --from=src / /src
 WORKDIR /src
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
