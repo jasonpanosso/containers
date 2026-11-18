@@ -88,6 +88,7 @@
         "/eclipse-temurin$/"
       ],
       "matchFileNames": [
+        "apps/ajqueue-velocity/**",
         "apps/minimotd-velocity/**",
         "apps/tab-velocity/**",
         "apps/velocity-scoreboard-api/**"
