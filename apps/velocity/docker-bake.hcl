@@ -1,12 +1,15 @@
-target "docker-metadata-action" {}
-
 variable "APP" {
   default = "velocity"
 }
 
 variable "VERSION" {
-  // renovate: datasource=github-releases depName=PaperMC/Velocity
+  // renovate-git-tag: depName=PaperMC/Velocity
   default = "v4.3.1"
+}
+
+// commit of the VERSION tag
+variable "VERSION_COMMIT" {
+  default = "300f5d0823691c8c8bace0c91714c63ab52e0b77"
 }
 
 group "default" {
@@ -14,13 +17,15 @@ group "default" {
 }
 
 target "image" {
-  inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
+    VERSION_COMMIT = "${VERSION_COMMIT}"
     SOURCE_DATE_EPOCH = "0"
   }
   labels = {
     "org.opencontainers.image.version" = "${VERSION}"
+    "org.opencontainers.image.revision" = "${VERSION_COMMIT}"
+    "org.opencontainers.image.licenses" = "GPL-3.0-or-later"
   }
 }
 

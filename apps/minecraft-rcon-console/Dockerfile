@@ -50,6 +50,8 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11
 COPY --from=api --chmod=0755 /minecraft-rcon /usr/local/bin/minecraft-rcon
 COPY --from=ui /ui/dist/browser /usr/share/minecraft-rcon/www
 COPY --from=src /LICENSE /usr/share/doc/minecraft-rcon/LICENSE
+# the stand-in icon package from this repo is bundled into the UI
+COPY --chmod=0644 fontawesome-pro-shim/LICENSE /usr/share/doc/minecraft-rcon/fontawesome-pro-shim-LICENSE
 # licenses of the npm packages bundled into the UI, written by the production ng build
 COPY --from=ui /ui/dist/3rdpartylicenses.txt /usr/share/doc/minecraft-rcon/ui-3rdpartylicenses.txt
 

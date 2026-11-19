@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
+      labels: ${{ steps.bake.outputs.labels }}
       matrix: ${{ steps.bake.outputs.matrix }}
       version: ${{ steps.bake.outputs.version }}
     steps:
@@ -34,26 +35,50 @@ jobs:
         with:
           persist-credentials: false
 
-      # setup build matrix from image-all platforms
       - name: Read Bake Definition
         id: bake
         working-directory: ./apps/${{ inputs.app }}
+        env:
+          APP: ${{ inputs.app }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           version="$(
               docker buildx bake --list type=variables,format=json --progress=quiet \
                   | jq --raw-output '.[] | select(.name == "VERSION") | .value'
           )"
+          definition="$(docker buildx bake image-all --print --progress=quiet)"
+          # labels shared by every app
+          repo="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          labels="$(
+              jq --compact-output \
+                  --arg title "${APP}" \
+                  --arg url "${repo}/pkgs/container/${APP}" \
+                  --arg documentation "${repo}/tree/${DEFAULT_BRANCH}/apps/${APP}" \
+                  --arg source "${repo}" \
+                  --arg authors "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY_OWNER}" \
+                  --arg vendor "${GITHUB_REPOSITORY_OWNER}" \
+                  '{
+                      "org.opencontainers.image.title": $title,
+                      "org.opencontainers.image.description": "Container image of \($title)",
+                      "org.opencontainers.image.url": $url,
+                      "org.opencontainers.image.documentation": $documentation,
+                      "org.opencontainers.image.source": $source,
+                      "org.opencontainers.image.authors": $authors,
+                      "org.opencontainers.image.vendor": $vendor
+                  } + (.target."image-all".labels // {})' \
+                  <<< "${definition}"
+          )"
           matrix="$(
-              docker buildx bake image-all --print --progress=quiet \
-                  | jq --compact-output '.target."image-all".platforms | map(
+              jq --compact-output '.target."image-all".platforms | map(
                       {
                           "linux/amd64": {arch: "amd64", runner: "ubuntu-26.04"},
                           "linux/arm64": {arch: "arm64", runner: "ubuntu-26.04-arm"}
                       }[.] as $runner
                       | if $runner then {platform: .} + $runner else error("no runner for platform \(.)") end
-                  )'
+                  )' <<< "${definition}"
           )"
           {
+              echo "labels=${labels}"
               echo "version=${version}"
               echo "matrix=${matrix}"
           } >> "$GITHUB_OUTPUT"
@@ -95,28 +120,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Image Metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with: &metadata
-          images: ${{ env.IMAGE }}
-          flavor: latest=false
-          tags: type=raw,value=${{ needs.prepare.outputs.version }}
-          # created is fixed so rebuilds of unchanged inputs keep their digest
-          labels: &metadata-overrides |
-            org.opencontainers.image.title=${{ inputs.app }}
-            org.opencontainers.image.description=${{ inputs.app }} image built by ${{ github.repository }}
-            org.opencontainers.image.created=1970-01-01T00:00:00Z
-          annotations: *metadata-overrides
-
-      - name: Drop Unused Labels
-        id: labels
+      - name: Write Image Metadata
+        id: metadata
         env:
-          LABELS: ${{ steps.meta.outputs.bake-file-labels }}
+          LABELS: ${{ needs.prepare.outputs.labels }}
         run: |
-          jq 'del(.target."docker-metadata-action".labels["org.opencontainers.image.revision", "org.opencontainers.image.licenses"])' \
-              "${LABELS}" > "${RUNNER_TEMP}/labels.json"
-          echo "file=${RUNNER_TEMP}/labels.json" >> "$GITHUB_OUTPUT"
+          jq '{target: {"image-all": {
+                  labels: .,
+                  annotations: (to_entries | map("manifest:\(.key)=\(.value)"))
+              }}}' <<< "${LABELS}" > "${RUNNER_TEMP}/metadata.json"
+          echo "file=${RUNNER_TEMP}/metadata.json" >> "$GITHUB_OUTPUT"
 
       - name: Build App
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
@@ -124,7 +137,7 @@ jobs:
         with:
           files: |
             ./docker-bake.hcl
-            cwd://${{ steps.labels.outputs.file }}
+            cwd://${{ steps.metadata.outputs.file }}
           provenance: false
           source: ./apps/${{ inputs.app }}
           targets: image-all
@@ -187,14 +200,6 @@ jobs:
               echo "current=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Image Metadata
-        if: ${{ steps.current.outputs.current == 'true' }}
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
-        with: *metadata
-
       - name: Login to GitHub Container Registry
         if: ${{ steps.current.outputs.current == 'true' }}
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -210,23 +215,19 @@ jobs:
         env:
           AMD64_DIGEST: ${{ needs.build.outputs.amd64_digest }}
           ARM64_DIGEST: ${{ needs.build.outputs.arm64_digest }}
+          LABELS: ${{ needs.prepare.outputs.labels }}
           MATRIX: ${{ needs.prepare.outputs.matrix }}
-          METADATA: ${{ steps.meta.outputs.json }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           refs=()
           for arch in $(jq --raw-output '.[].arch' <<< "${MATRIX}"); do
               var="${arch^^}_DIGEST"
               refs+=("${IMAGE}@${!var:?no digest for ${arch}}")
           done
-          args=()
-          tags="$(jq --raw-output '.tags[]' <<< "${METADATA}")"
-          annotations="$(
-              jq --raw-output '.annotations[]
-                  | select(test("^index:org\\.opencontainers\\.image\\.(revision|licenses)=") | not)' \
-                  <<< "${METADATA}"
-          )"
-          while IFS= read -r tag; do args+=(--tag "${tag}"); done <<< "${tags}"
-          while IFS= read -r annotation; do args+=(--annotation "${annotation}"); done <<< "${annotations}"
+          args=(--tag "${IMAGE}:${VERSION}")
+          while IFS= read -r annotation; do
+              args+=(--annotation "${annotation}")
+          done < <(jq --raw-output 'to_entries[] | "index:\(.key)=\(.value)"' <<< "${LABELS}")
           docker buildx imagetools create --metadata-file "${RUNNER_TEMP}/manifest.json" \
               "${args[@]}" "${refs[@]}"
           digest="$(jq --raw-output '."containerimage.descriptor".digest' "${RUNNER_TEMP}/manifest.json")"

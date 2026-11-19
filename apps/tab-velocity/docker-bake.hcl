@@ -1,5 +1,3 @@
-target "docker-metadata-action" {}
-
 variable "APP" {
   default = "tab-velocity"
 }
@@ -19,7 +17,6 @@ group "default" {
 }
 
 target "image" {
-  inherits = ["docker-metadata-action"]
   args = {
     VERSION = "${VERSION}"
     VERSION_COMMIT = "${VERSION_COMMIT}"
@@ -27,6 +24,8 @@ target "image" {
   }
   labels = {
     "org.opencontainers.image.version" = "${VERSION}"
+    "org.opencontainers.image.revision" = "${VERSION_COMMIT}"
+    "org.opencontainers.image.licenses" = "Apache-2.0"
   }
 }
 

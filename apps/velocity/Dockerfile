@@ -6,18 +6,20 @@ FROM --platform=$BUILDPLATFORM docker.io/library/alpine:3.24.4@sha256:f59abe656b
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 COPY --from=jq /jq /usr/local/bin/jq
 ARG VERSION
+ARG VERSION_COMMIT
 WORKDIR /out
+# newest stable PaperMC build of the VERSION_COMMIT tag commit
 RUN \
     build="$(wget -qO- \
         -U "jasonpanosso/containers (https://github.com/jasonpanosso/containers)" \
-        "https://fill.papermc.io/v3/projects/velocity/versions/${VERSION#*v}/builds/latest")" \
-    && echo "$build" | jq -e '.channel == "STABLE"' \
+        "https://fill.papermc.io/v3/projects/velocity/versions/${VERSION#*v}/builds" \
+        | jq -ec --arg commit "${VERSION_COMMIT}" \
+            'map(select(.channel == "STABLE" and .commits[0].sha == $commit)) | max_by(.id)')" \
     && wget -qO velocity.jar "$(echo "$build" | jq -r '.downloads."server:default".url')" \
     && echo "$(echo "$build" | jq -r '.downloads."server:default".checksums.sha256')  velocity.jar" | sha256sum -c \
-    && commit="$(echo "$build" | jq -er '.commits[0].sha')" \
-    && wget -qO LICENSE "https://raw.githubusercontent.com/PaperMC/Velocity/${commit}/LICENSE" \
+    && wget -qO LICENSE "https://raw.githubusercontent.com/PaperMC/Velocity/${VERSION_COMMIT}/LICENSE" \
     && printf 'Velocity %s (PaperMC build %s), unmodified, built from:\nhttps://github.com/PaperMC/Velocity/tree/%s\n' \
-        "${VERSION#v}" "$(echo "$build" | jq -r '.id')" "${commit}" > SOURCE
+        "${VERSION#v}" "$(echo "$build" | jq -r '.id')" "${VERSION_COMMIT}" > SOURCE
 
 FROM scratch
 COPY --from=velocity --chmod=0644 /out/velocity.jar /out/LICENSE /out/SOURCE /
