@@ -8,7 +8,7 @@ ARG VERSION_COMMIT
 # the build derives its version suffix from git tags
 ADD --keep-git-dir=true --checksum=${VERSION_COMMIT} https://github.com/NEZNAMY/VelocityScoreboardAPI.git#${VERSION} /
 
-FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:25.0.5_8-jdk-noble@sha256:80f67fb3d6f76e2d817d98a4cc2a9cf05f054d4e6adc5e2144bde671d722e63f AS plugin
+FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:25.0.5_8-jdk-noble@sha256:8599ea2d8f71696f00dcdf46213a4b65fa97ceeaa318671fccba6b0af2727792 AS plugin
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 ARG VERSION
 COPY --from=src / /src
