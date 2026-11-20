@@ -7,7 +7,7 @@ ARG VERSION_COMMIT
 # fails unless the tag still points at the pinned commit
 ADD --checksum=${VERSION_COMMIT} https://github.com/NEZNAMY/TAB.git#${VERSION} /
 
-FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:25.0.5_8-jdk-noble@sha256:8599ea2d8f71696f00dcdf46213a4b65fa97ceeaa318671fccba6b0af2727792 AS plugin
+FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:25.0.5_8-jdk-noble@sha256:3c35c595580ae3342eb34e5832e8e516ded8e767efa4a5fe61b8644d44847b8e AS plugin
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 COPY --from=src / /src
 WORKDIR /src
