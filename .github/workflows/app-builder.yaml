@@ -148,13 +148,19 @@ jobs:
             image-all.cache-from=type=gha,scope=${{ inputs.app }}-${{ matrix.arch }}
             image-all.cache-to=type=gha,scope=${{ inputs.app }}-${{ matrix.arch }},mode=max
 
+      # parse in script, not in env var to handle Build App failing
       - name: Export Digest
         id: digest
         if: ${{ inputs.release }}
         env:
           ARCH: ${{ matrix.arch }}
-          DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)['image-all']['containerimage.digest'] }}
-        run: echo "${ARCH}_digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          METADATA: ${{ steps.bake.outputs.metadata }}
+        run: |
+          digest="$(jq --exit-status --raw-output '."image-all"."containerimage.digest"' <<< "${METADATA}")"
+          {
+              echo "digest=${digest}"
+              echo "${ARCH}_digest=${digest}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Attest Build Provenance
         if: ${{ inputs.release }}
@@ -162,7 +168,7 @@ jobs:
         with:
           create-storage-record: false # only supported for org-owned repos
           push-to-registry: true
-          subject-digest: ${{ fromJSON(steps.bake.outputs.metadata)['image-all']['containerimage.digest'] }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
           subject-name: ${{ env.IMAGE }}
 
   merge:
