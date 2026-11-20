@@ -1,15 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "github>jasonpanosso/renovate-config"
-  ],
+  "extends": ["github>jasonpanosso/renovate-config"],
   "customManagers": [
     {
       "customType": "regex",
       "description": "Process Annotations in Docker Bake",
-      "managerFilePatterns": [
-        "/(^|/)docker-bake\\.hcl$/"
-      ],
+      "managerFilePatterns": ["/(^|/)docker-bake\\.hcl$/"],
       "matchStrings": [
         "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\n.+ = \"(?<currentValue>[^\"]+)\""
       ],
@@ -19,9 +15,7 @@
     {
       "customType": "regex",
       "description": "Process git tags pinned together with their commit in Docker Bake",
-      "managerFilePatterns": [
-        "/(^|/)docker-bake\\.hcl$/"
-      ],
+      "managerFilePatterns": ["/(^|/)docker-bake\\.hcl$/"],
       "matchStrings": [
         "renovate-git-tag: depName=(?<depName>\\S+).*\\n\\s*default = \"(?<currentValue>[^\"]+)\"\\n\\}\\n(?:\\n|//.*\\n)*variable \"VERSION_COMMIT\" \\{\\n\\s*default = \"(?<currentDigest>[a-f0-9]{40})\""
       ],
@@ -31,9 +25,7 @@
     {
       "customType": "regex",
       "description": "Process BuildKit image pinned in setup-buildx driver-opts",
-      "managerFilePatterns": [
-        "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
-      ],
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"],
       "matchStrings": [
         "driver-opts:\\s*image=(?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
@@ -42,26 +34,16 @@
   ],
   "packageRules": [
     {
-      "description": [
-        "Release Rules for App Updates"
-      ],
-      "matchFileNames": [
-        "apps/**"
-      ],
+      "description": ["Release Rules for App Updates"],
+      "matchFileNames": ["apps/**"],
       "additionalBranchPrefix": "{{parentDir}}-",
       "commitMessageTopic": "{{depName}}",
       "semanticCommitScope": "{{parentDir}}"
     },
     {
-      "description": [
-        "Update each Docker image across all apps in one PR"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchFileNames": [
-        "apps/**"
-      ],
+      "description": ["Update each Docker image across all apps in one PR"],
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["apps/**"],
       "additionalBranchPrefix": "",
       "semanticCommitScope": "deps"
     },
@@ -69,24 +51,14 @@
       "description": [
         "Eclipse Temurin JDK tags (e.g. 25.0.5_8-jdk-noble, 25.0.4.1_1-jdk-noble); docker versioning reads the _N suffix as a prerelease"
       ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "/eclipse-temurin$/"
-      ],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["/eclipse-temurin$/"],
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:\\.(?<build>\\d+))?_(?<revision>\\d+)(?<compatibility>-jdk-noble)$"
     },
     {
-      "description": [
-        "Hold JDK at 25 for apps whose upstream builds with it"
-      ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "/eclipse-temurin$/"
-      ],
+      "description": ["Hold JDK at 25 for apps whose upstream builds with it"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["/eclipse-temurin$/"],
       "matchFileNames": [
         "apps/ajqueue-velocity/**",
         "apps/minimotd-velocity/**",
@@ -99,24 +71,26 @@
       "description": [
         "Hold Ambassador's JDK at 17 for its Gradle 8.1.1 build and bundled Velocity submodule"
       ],
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "/eclipse-temurin$/"
-      ],
-      "matchFileNames": [
-        "apps/ambassador/**"
-      ],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["/eclipse-temurin$/"],
+      "matchFileNames": ["apps/ambassador/**"],
       "allowedVersions": "/^17\\./"
+    },
+    {
+      "description": [
+        "batch the eclipse temurin digest bumps into one weekly PR"
+      ],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["/eclipse-temurin$/"],
+      "matchUpdateTypes": ["digest"],
+      "groupName": "eclipse-temurin digests",
+      "schedule": ["* * * * 1"]
     },
     {
       "description": [
         "Auto-merge through PRs so the main ruleset's required checks gate it (the shared preset pushes to main untested)"
       ],
-      "matchPackageNames": [
-        "*"
-      ],
+      "matchPackageNames": ["*"],
       "automergeType": "pr",
       "ignoreTests": false
     }
