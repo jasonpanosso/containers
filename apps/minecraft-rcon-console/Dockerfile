@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked \
     && cp target/release/minecraft-rcon /minecraft-rcon
 
-FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:8ce6dd87e9823c5b48dcfb2c8604714ccb351ce59607327bcc4957448da279b5
 COPY --from=api --chmod=0755 /minecraft-rcon /usr/local/bin/minecraft-rcon
 COPY --from=ui /ui/dist/browser /usr/share/minecraft-rcon/www
 COPY --from=src /LICENSE /usr/share/doc/minecraft-rcon/LICENSE
