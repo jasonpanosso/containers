@@ -9,7 +9,7 @@ ARG VERSION_COMMIT
 # Velocity submodule) because Velocity's build runs `git rev-parse HEAD`
 ADD --keep-git-dir=true --checksum=${VERSION_COMMIT} https://github.com/adde0109/Ambassador.git#${VERSION} /
 
-FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:17.0.21_9-jdk-noble@sha256:f7f22e46d0f60856d74d602d6b61db29ece3d011e85183a718bea8341734cd52 AS plugin
+FROM --platform=$BUILDPLATFORM docker.io/library/eclipse-temurin:17.0.21_9-jdk-noble@sha256:e7984fb69c35910b108a5070b30631c8d350142317b91a5f57313d753fd69987 AS plugin
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 RUN apt-get update -qq \
     && apt-get install -qqy --no-install-recommends git >/dev/null \
