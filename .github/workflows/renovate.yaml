@@ -37,7 +37,7 @@ permissions:
 
 env:
   # renovate: datasource=github-releases depName=renovatebot/renovate
-  PINNED_RENOVATE_VERSION: 44.239.0
+  PINNED_RENOVATE_VERSION: 44.256.1
 
 jobs:
   main:
