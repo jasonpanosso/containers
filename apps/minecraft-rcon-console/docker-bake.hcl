@@ -4,12 +4,12 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate-git-tag: depName=Rauks/Minecraft-RCON-Console
-  default = "2.8.7"
+  default = "2.8.8"
 }
 
 // commit of the VERSION tag
 variable "VERSION_COMMIT" {
-  default = "ed3b35889d67ed0417aa46f4483bdcee05b46e65"
+  default = "a9b17bdcbcca9264bdcd7a3f1a24f1be1f51db0a"
 }
 
 group "default" {
