@@ -4,12 +4,12 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate-git-tag: depName=christiaangoossens/hass-oidc-auth
-  default = "v1.2.1"
+  default = "v1.3.0"
 }
 
 // commit of the VERSION tag
 variable "VERSION_COMMIT" {
-  default = "0699a6774340e1440e770690c8af922bd933a1e7"
+  default = "5749fcb135415dd8e2bf027f998ad407ece23447"
 }
 
 group "default" {
